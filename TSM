@@ -1,0 +1,120 @@
+%% Introduction
+% This code solve the Transient Storage Model (TSM) for uniform
+% channel and flow  parameters with pdepe function in MATLAB.
+
+% This code available at :
+%                      https://github.com/khodambashi/TSM.git
+
+% For more information : 
+%                      https://www.mathworks.com/help/matlab/ref/pdepe.html
+
+% sajad Khodambashi Emami, Ver 1.0, jan 2022
+%% 
+close all
+clear
+clc
+
+%% Difine Models Parameters
+global D qL A Alpha As Q CL
+
+D = 0.24; % Velocity [m/s]
+
+qL = 0.001 ;  %  the lateral inflow rate on a per length basis (m^3/s-m)
+
+A = 3 ; % the main channel cross-sectional area [m^2]
+
+Alpha = 0.0005 ; %  storage zone exchange coefficient [1/s]
+
+As = 1 ; % the cross-sectional area of the storage zone [m^2]
+
+Q = 1 ; % the volumetric flow rate [m^3/s]
+
+CL = 0.5 ; % the lateral inflow solute concentration [mg/L]
+
+U = Q/A ;
+
+%% Spatial Mesh
+Xmin = 0 ;                % pollutant injection site
+L = 281 ;                 % Length of river [m]
+NX = 282 ;                % Number of spatial subdivisions
+X = linspace(Xmin,L,NX) ; % Subdivision of the Spatial domain.
+dX = L/(NX-1) ;           % space-step
+
+%% Temporal Mesh
+Tmin = 0 ;                   % initial time
+Tmax = (L/U)*1.5  ;          % lengh of simulation [s]
+NT = 201 ;                   % Number of temporal subdivisions   
+T = linspace(Tmin,Tmax,NT) ; % Subdivision of the temporal domain.
+dT = Tmax/(NT-1) ;           % time-step
+
+%% Time Pattern of Pollutant Injection
+global t c
+c = [10 ,10 ,0 ,0];
+t = [0 ,100 ,150 ,10000];
+
+%%  Symmetry constant
+m = 0 ;
+
+%% Main Solve Function
+C = pdepe(m,@TSMfunc,@TSMic,@TSMbc,X,T);
+
+%% plot plluutant transport in river
+
+for i=1:NT
+    
+   plot(X,C(i,:,1),'k','LineWidth',1) 
+   title('Pllutant Transport in River')
+   xlabel('River Route [m]')
+   ylabel ('Concentration [ppm]')
+   box on
+   grid on
+   
+    axis([0 L 0 max(c)])
+    pause(0.0412)
+end
+close all
+%% Difine Equation for pdepe
+function [c,f,s] = TSMfunc(~,~,u,dudx)
+global D qL A Alpha As Q CL
+
+c = [1
+    1] ;
+   
+
+f =  [  D * dudx(1)
+    0] ;
+
+s = [ Alpha * ( u(2) - u(1) ) - (Q/A) * dudx(1) + qL * ( CL - u(1) ) 
+   Alpha * (A/As) * ( u(1) - u(2) ) ] ;
+
+end
+
+%% Initial Condition
+function u0 = TSMic(~)
+
+   u0 = [0
+       0];
+
+end
+
+%% Boundray Condition
+function [pl,ql,pr,qr] = TSMbc(~,ul,~,~,T)
+global t c D
+C_in = interp1(t,c,T) ;
+
+   % Left Boundary Conditions (time pattern of pollutant injection)
+      pl = [ ul(1) - C_in
+       ul(2) ];
+   
+    ql = [0 
+        0];
+ 
+   % Right Boundary Conditions ()
+    pr = [ 0
+        0 ];
+    qr = [1/D 
+        1 ];
+ 
+end
+
+%%-------------------------------------------------------------------------
